@@ -6,10 +6,11 @@ export function SettingsPanel({ settings, onSave, onClose }) {
   const [systemPrompt, setSystemPrompt] = useState(settings.systemPrompt)
   const [autoCapture, setAutoCapture] = useState(settings.autoCapture)
   const [captureInterval, setCaptureInterval] = useState(settings.captureInterval)
+  const [provider, setProvider] = useState(settings.provider || 'gemini')
   const [showKey, setShowKey] = useState(false)
 
   const handleSave = () => {
-    onSave({ apiKey, systemPrompt, autoCapture, captureInterval })
+    onSave({ apiKey, systemPrompt, autoCapture, captureInterval, provider })
     onClose()
   }
 
@@ -42,17 +43,46 @@ export function SettingsPanel({ settings, onSave, onClose }) {
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
 
+        {/* Provider Selection */}
+        <div className="space-y-2">
+          <label className="text-xs text-gaming-cyan/80 font-medium uppercase tracking-wider">
+            Provider
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setProvider('gemini')}
+              className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition-all ${
+                provider === 'gemini'
+                  ? 'bg-gaming-cyan/20 border-gaming-cyan text-gaming-cyan'
+                  : 'bg-gaming-card border-gaming-border text-gaming-border hover:text-white'
+              }`}
+            >
+              🔮 Gemini API
+            </button>
+            <button
+              onClick={() => setProvider('openrouter')}
+              className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition-all ${
+                provider === 'openrouter'
+                  ? 'bg-gaming-cyan/20 border-gaming-cyan text-gaming-cyan'
+                  : 'bg-gaming-card border-gaming-border text-gaming-border hover:text-white'
+              }`}
+            >
+              🌐 OpenRouter
+            </button>
+          </div>
+        </div>
+
         {/* API Key */}
         <div className="space-y-2">
           <label className="text-xs text-gaming-cyan/80 font-medium uppercase tracking-wider">
-            Gemini API Key
+            {provider === 'gemini' ? 'Gemini API Key' : 'OpenRouter API Key'}
           </label>
           <div className="relative">
             <input
               type={showKey ? 'text' : 'password'}
               value={apiKey}
               onChange={e => setApiKey(e.target.value)}
-              placeholder="AIzaSy..."
+              placeholder={provider === 'gemini' ? 'AIzaSy...' : 'sk-or-...'}
               className="w-full bg-gaming-card border border-gaming-border rounded-lg px-3 py-2.5
                          text-sm text-white placeholder-gaming-border/50 focus:outline-none
                          focus:border-gaming-cyan transition-colors pr-10"
@@ -76,11 +106,15 @@ export function SettingsPanel({ settings, onSave, onClose }) {
             </button>
           </div>
           <p className="text-xs text-gaming-border/50">
-            Key wird nur lokal gespeichert. Hole ihn von{' '}
-            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer"
-               className="text-gaming-cyan/70 underline">
-              aistudio.google.com
-            </a>
+            {provider === 'gemini' ? (
+              <>Key wird nur lokal gespeichert. Hole ihn von{' '}
+              <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer"
+                 className="text-gaming-cyan/70 underline">aistudio.google.com</a></>
+            ) : (
+              <>OpenRouter Key von{' '}
+              <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer"
+                 className="text-gaming-cyan/70 underline">openrouter.ai/keys</a></>
+            )}
           </p>
         </div>
 
@@ -150,6 +184,15 @@ export function SettingsPanel({ settings, onSave, onClose }) {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Info */}
+        <div className="bg-gaming-card border border-gaming-border/50 rounded-lg p-3">
+          <p className="text-xs text-gaming-border/70 leading-relaxed">
+            📱 <strong className="text-gaming-cyan/80">Modell:</strong> Gemini 2.0 Flash (mit Google Search Grounding)
+            <br/>🔒 Alle Daten bleiben auf deinem Gerät
+            <br/>🎤 Voice-Input funktioniert am besten in Chrome
+          </p>
         </div>
       </div>
 

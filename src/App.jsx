@@ -83,6 +83,7 @@ export default function App() {
         mimeType: 'image/jpeg',
         prompt: voicePrompt || undefined,
         systemPrompt: settings.systemPrompt,
+        provider: settings.provider || 'gemini',
       })
 
       setMessages(prev => prev.map(m =>
