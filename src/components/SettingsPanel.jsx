@@ -189,7 +189,7 @@ export function SettingsPanel({ settings, onSave, onClose }) {
         {/* Info */}
         <div className="bg-gaming-card border border-gaming-border/50 rounded-lg p-3">
           <p className="text-xs text-gaming-border/70 leading-relaxed">
-            📱 <strong className="text-gaming-cyan/80">Modell:</strong> Gemini 2.0 Flash (mit Google Search Grounding)
+            📱 <strong className="text-gaming-cyan/80">Modell:</strong> Gemini 2.5 Flash (mit Google Search Grounding)
             <br/>🔒 Alle Daten bleiben auf deinem Gerät
             <br/>🎤 Voice-Input funktioniert am besten in Chrome
           </p>

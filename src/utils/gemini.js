@@ -1,4 +1,4 @@
-const GEMINI_MODEL = 'gemini-2.0-flash'
+const GEMINI_MODEL = 'gemini-2.5-flash'
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 export async function analyzeFrame({ apiKey, imageBase64, mimeType = 'image/jpeg', prompt, systemPrompt, provider = 'gemini' }) {
