@@ -1,11 +1,34 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 
+// Map text icon names to real emojis (Gemini sometimes returns material icon names)
+const ICON_FALLBACK_MAP = {
+  'handheld_device': '📱', 'warning': '⚠️', 'info': 'ℹ️', 'error': '❌',
+  'check': '✅', 'check_circle': '✅', 'star': '⭐', 'home': '🏠',
+  'rocket': '🚀', 'search': '🔍', 'settings': '⚙️', 'map': '🗺️',
+  'inventory': '📦', 'monetization_on': '💰', 'bolt': '⚡', 'build': '🔧',
+  'videogame_asset': '🎮', 'shield': '🛡️', 'science': '🧪', 'public': '🌍',
+  'flight': '✈️', 'local_fire_department': '🔥', 'favorite': '❤️',
+  'diamond': '💎', 'sword': '🗡️', 'navigation': '🧭', 'explore': '🔭',
+}
+
+function fixIcon(icon) {
+  if (!icon) return '💡'
+  // If it's already an emoji (starts with non-ASCII), return as-is
+  if (/^[^\x00-\x7F]/.test(icon)) return icon
+  // Try mapping text name to emoji
+  const lower = icon.toLowerCase().trim()
+  return ICON_FALLBACK_MAP[lower] || '💡'
+}
+
 // Parse Gemini response: try JSON, fallback to plain text
 function parseGeminiResponse(text) {
   if (!text) return { summary: '', action: '', icon: '💡', details: '' }
   try {
     const obj = JSON.parse(text)
-    if (obj && obj.summary) return obj
+    if (obj && obj.summary) {
+      obj.icon = fixIcon(obj.icon)
+      return obj
+    }
   } catch (_) {}
   // Fallback: treat full text as details, first line as summary
   const lines = text.split('\n').filter(Boolean)
