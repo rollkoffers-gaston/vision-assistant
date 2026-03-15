@@ -1,7 +1,9 @@
 export const GEMINI_MODELS = [
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Schnell & günstig' },
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Beste Qualität' },
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Legacy schnell' },
+  { id: 'gemini-3.1-pro-preview', name: '🔥 Gemini 3.1 Pro Preview', description: 'Neuestes SOTA — beste Qualität, Reasoning + Vision' },
+  { id: 'gemini-3.1-flash-lite-preview', name: 'Gemini 3.1 Flash Lite Preview', description: 'Neueste Generation, schnell & günstig' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Schnell & zuverlässig' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Sehr gute Qualität' },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Legacy (wird Juni deprecated)' },
 ]
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
