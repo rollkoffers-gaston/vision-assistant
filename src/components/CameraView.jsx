@@ -40,25 +40,7 @@ export function CameraView({ videoRef, isReady, error, facingMode, onSwitch, zoo
         </>
       )}
 
-      {/* Zoom slider */}
-      {isReady && zoomSupported && maxZoom > 1 && (
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col items-center gap-2 z-20">
-          <span className="text-cyan-400/80 text-xs font-mono">{zoom.toFixed(1)}x</span>
-          <input
-            type="range"
-            min="1"
-            max={maxZoom}
-            step="0.1"
-            value={zoom}
-            onChange={(e) => onZoom?.(parseFloat(e.target.value))}
-            className="w-28 accent-cyan-400 -rotate-90 origin-center"
-            style={{ WebkitAppearance: 'none', height: '2px' }}
-          />
-          <span className="text-white/40 text-xs">🔍</span>
-        </div>
-      )}
-
-      {/* Zoom buttons (fallback if slider feels bad on mobile) */}
+      {/* Zoom buttons */}
       {isReady && zoomSupported && maxZoom > 1 && (
         <div className="absolute left-4 bottom-32 flex flex-col gap-1.5 z-20">
           <button
