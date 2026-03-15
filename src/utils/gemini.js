@@ -65,6 +65,17 @@ async function analyzeFramesViaGemini({ apiKey, frames, transcript, systemPrompt
     generationConfig: {
       temperature: 0.7,
       maxOutputTokens: 5000,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "object",
+        properties: {
+          summary: { type: "string" },
+          action: { type: "string" },
+          icon: { type: "string" },
+          details: { type: "string" }
+        },
+        required: ["summary", "action", "icon", "details"]
+      }
     }
   }
 

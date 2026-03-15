@@ -1,4 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+
+// Parse Gemini response: try JSON, fallback to plain text
+function parseGeminiResponse(text) {
+  if (!text) return { summary: '', action: '', icon: '💡', details: '' }
+  try {
+    const obj = JSON.parse(text)
+    if (obj && obj.summary) return obj
+  } catch (_) {}
+  // Fallback: treat full text as details, first line as summary
+  const lines = text.split('\n').filter(Boolean)
+  const firstLine = lines[0] || text
+  return {
+    summary: firstLine.slice(0, 100),
+    action: '',
+    icon: '💡',
+    details: text,
+  }
+}
 import { CameraView } from './components/CameraView'
 import { TipOverlay } from './components/TipOverlay'
 import { HistoryPanel } from './components/HistoryPanel'
@@ -107,8 +125,9 @@ export default function App() {
         model: settings.model || 'gemini-2.5-flash',
       })
 
-      resolveTip(id, response)
-      autoSpeak(response)
+      const parsed = parseGeminiResponse(response)
+      resolveTip(id, parsed)
+      autoSpeak(parsed)
     } catch (err) {
       const msg = err.message || 'Analyse fehlgeschlagen'
       rejectTip(id, msg)
@@ -184,8 +203,9 @@ export default function App() {
         model: settings.model || 'gemini-2.5-flash',
       })
 
-      resolveTip(id, response)
-      autoSpeak(response)
+      const parsed = parseGeminiResponse(response)
+      resolveTip(id, parsed)
+      autoSpeak(parsed)
     } catch (err) {
       const msg = err.message || 'Analyse fehlgeschlagen'
       rejectTip(id, msg)
@@ -195,23 +215,11 @@ export default function App() {
     }
   }, [ptt, settings, camera, resolveTip, rejectTip, showNotification])
 
-  // Auto-speak: read short responses automatically
-  const autoSpeak = useCallback((text) => {
-    if (!text || !window.speechSynthesis) return
-
-    // Extract short portion for TTS
-    const moreIdx = text.indexOf('[Mehr]')
-    const moreIdx2 = text.indexOf('[More]')
-    const cutIdx = moreIdx >= 0 ? moreIdx : moreIdx2 >= 0 ? moreIdx2 : -1
-    const shortText = cutIdx >= 0 ? text.slice(0, cutIdx).trim() : text
-
-    // If short enough, read all; otherwise just first 2 sentences
-    if (shortText.length <= 200) {
-      speak(shortText)
-    } else {
-      const sentences = shortText.match(/[^.!?]+[.!?]+/g) || [shortText]
-      speak(sentences.slice(0, 2).join(' '))
-    }
+  // Auto-speak: read summary + action (not details)
+  const autoSpeak = useCallback((parsed) => {
+    if (!parsed || !window.speechSynthesis) return
+    const ttsText = [parsed.summary, parsed.action].filter(Boolean).join(' ')
+    if (ttsText) speak(ttsText)
   }, [])
 
   // Auto-capture timer
