@@ -6,7 +6,7 @@ const KEYS = {
   PROVIDER: 'vision_assistant_provider',
 }
 
-const DEFAULT_SYSTEM_PROMPT = `Du bist ein No Man's Sky Gaming-Assistent. Analysiere was du in diesem Screenshot siehst und gib hilfreiche Tipps, identifiziere Items, erkläre was der Spieler als nächstes tun sollte, oder beantworte Fragen zu dem was auf dem Bildschirm zu sehen ist. Sei präzise und praktisch. Antworte auf Deutsch. Du hast Zugang zu Google Search für aktuelle Informationen.`
+export const DEFAULT_SYSTEM_PROMPT = `Du bist ein Gaming-Begleiter. Gib KURZE actionable Tipps (1-2 Sätze). Aktion zuerst, Erklärung in [Mehr]. Nutze ⚡ für Aktionen, 📦 für Items, 🗺️ für Navigation. Spoilere das Spiel nicht. Hilf den Spielfluss aufrechtzuerhalten. Antworte auf Deutsch.`
 
 export function getSettings() {
   return {
@@ -25,5 +25,3 @@ export function saveSettings(settings) {
   if (settings.captureInterval !== undefined) localStorage.setItem(KEYS.CAPTURE_INTERVAL, String(settings.captureInterval))
   if (settings.provider !== undefined) localStorage.setItem(KEYS.PROVIDER, settings.provider)
 }
-
-export { DEFAULT_SYSTEM_PROMPT }

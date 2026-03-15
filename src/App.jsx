@@ -1,55 +1,80 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { CameraView } from './components/CameraView'
-import { ChatPanel } from './components/ChatPanel'
+import { TipOverlay } from './components/TipOverlay'
+import { HistoryPanel } from './components/HistoryPanel'
 import { SettingsPanel } from './components/SettingsPanel'
 import { ActionBar } from './components/ActionBar'
 import { useCamera } from './hooks/useCamera'
-import { useVoiceInput } from './hooks/useVoiceInput'
-import { analyzeFrame } from './utils/gemini'
+import { usePushToTalk } from './hooks/usePushToTalk'
+import { analyzeFrames } from './utils/gemini'
 import { speak, stop as stopTTS } from './utils/tts'
 import { getSettings, saveSettings } from './utils/storage'
 
 export default function App() {
   const [settings, setSettings] = useState(getSettings)
-  const [showChat, setShowChat] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [messages, setMessages] = useState([])
+  const [tips, setTips] = useState([])
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [notification, setNotification] = useState(null)
-  const [voiceTranscript, setVoiceTranscript] = useState('')
+  const [recordingTranscript, setRecordingTranscript] = useState('')
 
   const autoTimerRef = useRef(null)
-  const pendingVoiceRef = useRef('')
 
   const camera = useCamera()
 
-  // Voice input handler
-  const voiceInput = useVoiceInput({
-    onResult: useCallback((transcript) => {
-      setVoiceTranscript(transcript)
-      pendingVoiceRef.current = transcript
-      // Auto-capture on voice result
-      setTimeout(() => {
-        handleCapture(transcript)
-      }, 100)
-    }, []),
-    onError: useCallback((err) => {
-      showNotification(err, 'error')
-    }, []),
+  // Push-to-talk hook
+  const ptt = usePushToTalk({
+    onError: useCallback((err) => showNotification(err, 'error'), []),
   })
 
-  // Show notification
+  // Mirror live transcript from PTT
+  useEffect(() => {
+    setRecordingTranscript(ptt.transcript)
+  }, [ptt.transcript])
+
   const showNotification = useCallback((text, type = 'info') => {
     setNotification({ text, type })
     setTimeout(() => setNotification(null), 3000)
   }, [])
 
-  // Main capture + analyze
-  const handleCapture = useCallback(async (voicePrompt = '') => {
+  // Add a tip entry (loading state)
+  const addTip = useCallback((extra = {}) => {
+    const id = Date.now()
+    const frame = camera.captureFrame()
+    const newTip = {
+      id,
+      timestamp: id,
+      imageDataUrl: frame?.dataUrl || null,
+      question: extra.question || '',
+      response: '',
+      loading: true,
+      error: null,
+    }
+    setTips(prev => [...prev, newTip])
+    return { id, frame }
+  }, [camera])
+
+  // Update tip with result
+  const resolveTip = useCallback((id, response) => {
+    setTips(prev => prev.map(t => t.id === id ? { ...t, response, loading: false } : t))
+  }, [])
+
+  const rejectTip = useCallback((id, error) => {
+    setTips(prev => prev.map(t => t.id === id ? { ...t, loading: false, error } : t))
+  }, [])
+
+  // Dismiss a tip
+  const dismissTip = useCallback((id) => {
+    setTips(prev => prev.filter(t => t.id !== id))
+  }, [])
+
+  // Quick capture: single screenshot → analyze
+  const handleQuickCapture = useCallback(async () => {
     if (isAnalyzing) return
 
     if (!settings.apiKey) {
-      showNotification('Bitte API-Key in Einstellungen eintragen', 'warn')
+      showNotification('Bitte API-Key eintragen', 'warn')
       setShowSettings(true)
       return
     }
@@ -60,50 +85,132 @@ export default function App() {
       return
     }
 
-    const msgId = Date.now()
-    const newMsg = {
-      id: msgId,
-      timestamp: msgId,
+    const id = Date.now()
+    setTips(prev => [...prev, {
+      id,
+      timestamp: id,
       imageDataUrl: frame.dataUrl,
-      question: voicePrompt || '',
+      question: '',
       response: '',
       loading: true,
       error: null,
-    }
-
-    setMessages(prev => [...prev, newMsg])
+    }])
     setIsAnalyzing(true)
-    setVoiceTranscript('')
-    pendingVoiceRef.current = ''
 
     try {
-      const response = await analyzeFrame({
+      const response = await analyzeFrames({
         apiKey: settings.apiKey,
-        imageBase64: frame.base64,
-        mimeType: 'image/jpeg',
-        prompt: voicePrompt || undefined,
+        frames: [{ base64: frame.base64, mimeType: 'image/jpeg' }],
+        transcript: '',
         systemPrompt: settings.systemPrompt,
         provider: settings.provider || 'gemini',
       })
 
-      setMessages(prev => prev.map(m =>
-        m.id === msgId ? { ...m, response, loading: false } : m
-      ))
-
-      // Auto-speak response
-      speak(response)
-
+      resolveTip(id, response)
+      autoSpeak(response)
     } catch (err) {
-      console.error('Analysis error:', err)
-      const errorMsg = err.message || 'Analyse fehlgeschlagen'
-      setMessages(prev => prev.map(m =>
-        m.id === msgId ? { ...m, loading: false, error: errorMsg } : m
-      ))
-      showNotification(errorMsg, 'error')
+      const msg = err.message || 'Analyse fehlgeschlagen'
+      rejectTip(id, msg)
+      showNotification(msg, 'error')
     } finally {
       setIsAnalyzing(false)
     }
-  }, [isAnalyzing, settings, camera, showNotification])
+  }, [isAnalyzing, settings, camera, resolveTip, rejectTip, showNotification])
+
+  // Push-to-talk start
+  const handlePTTStart = useCallback(async () => {
+    if (isAnalyzing) return
+    const stream = camera.getStream()
+    await ptt.startRecording(stream)
+  }, [isAnalyzing, camera, ptt])
+
+  // Push-to-talk end → extract frames + send
+  const handlePTTEnd = useCallback(async () => {
+    if (!ptt.isRecording) return
+
+    const result = await ptt.stopRecording()
+    if (!result) return
+
+    const { blob, transcript } = result
+
+    if (!settings.apiKey) {
+      showNotification('Bitte API-Key eintragen', 'warn')
+      setShowSettings(true)
+      return
+    }
+
+    const id = Date.now()
+    // Get a current frame for thumbnail
+    const thumbFrame = camera.captureFrame()
+    setTips(prev => [...prev, {
+      id,
+      timestamp: id,
+      imageDataUrl: thumbFrame?.dataUrl || null,
+      question: transcript || '',
+      response: '',
+      loading: true,
+      error: null,
+    }])
+    setIsAnalyzing(true)
+
+    try {
+      // Extract 3-5 frames from recorded video
+      let frames = []
+
+      if (blob.size > 1000) {
+        try {
+          frames = await camera.extractFramesFromBlob(blob, 4)
+        } catch (e) {
+          console.warn('Frame extraction failed, using current frame:', e)
+        }
+      }
+
+      // Fallback: use current camera frame
+      if (frames.length === 0 && thumbFrame) {
+        frames = [{ base64: thumbFrame.base64, mimeType: 'image/jpeg' }]
+      }
+
+      if (frames.length === 0) {
+        throw new Error('Keine Frames verfügbar')
+      }
+
+      const response = await analyzeFrames({
+        apiKey: settings.apiKey,
+        frames,
+        transcript: transcript || '',
+        systemPrompt: settings.systemPrompt,
+        provider: settings.provider || 'gemini',
+      })
+
+      resolveTip(id, response)
+      autoSpeak(response)
+    } catch (err) {
+      const msg = err.message || 'Analyse fehlgeschlagen'
+      rejectTip(id, msg)
+      showNotification(msg, 'error')
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }, [ptt, settings, camera, resolveTip, rejectTip, showNotification])
+
+  // Auto-speak: read short responses automatically
+  const autoSpeak = useCallback((text) => {
+    if (!text || !window.speechSynthesis) return
+
+    // Extract short portion for TTS
+    const moreIdx = text.indexOf('[Mehr]')
+    const moreIdx2 = text.indexOf('[More]')
+    const cutIdx = moreIdx >= 0 ? moreIdx : moreIdx2 >= 0 ? moreIdx2 : -1
+    const shortText = cutIdx >= 0 ? text.slice(0, cutIdx).trim() : text
+
+    // If short enough, read all; otherwise just first 2 sentences
+    if (shortText.length <= 200) {
+      speak(shortText)
+    } else {
+      const sentences = shortText.match(/[^.!?]+[.!?]+/g) || [shortText]
+      speak(sentences.slice(0, 2).join(' '))
+    }
+  }, [])
 
   // Auto-capture timer
   useEffect(() => {
@@ -114,33 +221,36 @@ export default function App() {
 
     if (settings.autoCapture && camera.isReady) {
       autoTimerRef.current = setInterval(() => {
-        handleCapture()
+        handleQuickCapture()
       }, settings.captureInterval * 1000)
     }
 
     return () => {
       if (autoTimerRef.current) clearInterval(autoTimerRef.current)
     }
-  }, [settings.autoCapture, settings.captureInterval, camera.isReady, handleCapture])
+  }, [settings.autoCapture, settings.captureInterval, camera.isReady, handleQuickCapture])
 
   // Settings save
   const handleSaveSettings = useCallback((newSettings) => {
     setSettings(newSettings)
     saveSettings(newSettings)
-    showNotification('Einstellungen gespeichert', 'success')
+    showNotification('Einstellungen gespeichert ✓', 'success')
   }, [showNotification])
 
   // First run: open settings if no API key
   useEffect(() => {
     if (!settings.apiKey) {
-      setTimeout(() => setShowSettings(true), 1000)
+      setTimeout(() => setShowSettings(true), 800)
     }
   }, [])
 
-  return (
-    <div className="relative w-full h-full bg-gaming-bg overflow-hidden select-none">
+  // Active tips (non-dismissed)
+  const activeTips = tips.filter(t => t.loading || t.response || t.error)
 
-      {/* Camera view - fills entire screen */}
+  return (
+    <div className="relative w-full h-full bg-black overflow-hidden select-none">
+
+      {/* Camera view - fullscreen background */}
       <div className="absolute inset-0">
         <CameraView
           videoRef={camera.videoRef}
@@ -151,89 +261,118 @@ export default function App() {
         />
       </div>
 
-      {/* Top overlay: app title */}
+      {/* Top HUD bar */}
       <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none">
-        <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-gaming-cyan animate-pulse" />
-            <span className="text-gaming-cyan text-xs font-medium tracking-widest uppercase opacity-80">
-              Vision Assistant
+        <div className="px-4 pt-safe pt-3 pb-1 flex items-center justify-between">
+          {/* App indicator */}
+          <div className="flex items-center gap-2 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full border border-white/10">
+            <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="text-cyan-400 text-xs font-medium tracking-widest uppercase">
+              Vision
             </span>
           </div>
+
+          {/* Auto-capture indicator */}
           {settings.autoCapture && (
-            <div className="flex items-center gap-1.5 bg-gaming-teal/20 border border-gaming-teal/40
-                            px-2 py-0.5 rounded-full">
-              <div className="w-1.5 h-1.5 rounded-full bg-gaming-teal animate-pulse" />
-              <span className="text-xs text-gaming-teal">Auto {settings.captureInterval}s</span>
+            <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm border border-teal-500/40 px-2.5 py-1 rounded-full">
+              <div className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />
+              <span className="text-xs text-teal-400">Auto {settings.captureInterval}s</span>
+            </div>
+          )}
+
+          {/* History button (top right) */}
+          {tips.length > 0 && (
+            <div className="pointer-events-auto">
+              <button
+                onClick={() => setShowHistory(true)}
+                className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm border border-white/20 px-2.5 py-1 rounded-full hover:border-cyan-400/40 transition-colors"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-white/60">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                <span className="text-white/60 text-xs">{tips.length}</span>
+              </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Voice transcript overlay */}
-      {(voiceInput.isListening || voiceTranscript) && (
-        <div className="absolute top-1/2 left-4 right-4 -translate-y-1/2 z-10 pointer-events-none">
-          <div className="bg-gaming-bg/90 border border-gaming-cyan/40 rounded-xl px-4 py-3 text-center backdrop-blur-sm">
-            {voiceInput.isListening ? (
-              <div className="flex items-center justify-center gap-3">
-                <div className="flex gap-1">
-                  {[0, 1, 2, 3, 4].map(i => (
-                    <div
-                      key={i}
-                      className="w-1 bg-gaming-cyan rounded-full animate-bounce"
-                      style={{
-                        height: `${12 + Math.random() * 16}px`,
-                        animationDelay: `${i * 100}ms`,
-                      }}
-                    />
-                  ))}
-                </div>
-                <span className="text-gaming-cyan text-sm">Zuhören...</span>
-              </div>
+      {/* Recording indicator overlay */}
+      {ptt.isRecording && (
+        <div className="absolute top-0 left-0 right-0 bottom-0 z-10 pointer-events-none border-2 border-red-500/60 rounded-none" />
+      )}
+
+      {/* Voice transcript while recording */}
+      {ptt.isRecording && (
+        <div className="absolute top-1/2 left-4 right-4 -translate-y-1/2 z-20 pointer-events-none">
+          <div className="bg-black/75 backdrop-blur-md border border-red-500/30 rounded-2xl px-4 py-3 text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-red-400 text-xs font-medium">Aufnahme läuft</span>
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            </div>
+            {recordingTranscript ? (
+              <p className="text-white text-sm">{recordingTranscript}</p>
             ) : (
-              <p className="text-white text-sm">{voiceTranscript}</p>
+              <div className="flex items-center justify-center gap-1.5">
+                {[0, 1, 2, 3, 4].map(i => (
+                  <div
+                    key={i}
+                    className="w-1 bg-red-400/70 rounded-full animate-bounce"
+                    style={{
+                      height: `${8 + (i % 3) * 6}px`,
+                      animationDelay: `${i * 80}ms`,
+                    }}
+                  />
+                ))}
+              </div>
             )}
+            <p className="text-white/30 text-xs mt-2">Loslassen zum Analysieren</p>
           </div>
         </div>
       )}
 
       {/* Notification */}
       {notification && (
-        <div className={`absolute top-16 left-4 right-4 z-50 animate-fadeIn pointer-events-none`}>
-          <div className={`px-4 py-2 rounded-lg border text-sm text-center backdrop-blur-sm ${
+        <div className="absolute top-14 left-4 right-4 z-50 pointer-events-none">
+          <div className={`px-4 py-2 rounded-xl border text-sm text-center backdrop-blur-sm ${
             notification.type === 'error'
               ? 'bg-red-500/20 border-red-500/40 text-red-300'
               : notification.type === 'warn'
               ? 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300'
               : notification.type === 'success'
-              ? 'bg-gaming-teal/20 border-gaming-teal/40 text-gaming-teal'
-              : 'bg-gaming-cyan/20 border-gaming-cyan/40 text-gaming-cyan'
+              ? 'bg-teal-500/20 border-teal-500/40 text-teal-300'
+              : 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300'
           }`}>
             {notification.text}
           </div>
         </div>
       )}
 
+      {/* Tip overlays — float above action bar */}
+      {!showSettings && !showHistory && (
+        <TipOverlay tips={activeTips} onDismiss={dismissTip} />
+      )}
+
       {/* Action bar */}
-      {!showChat && !showSettings && (
+      {!showSettings && !showHistory && (
         <ActionBar
-          onCapture={() => handleCapture(pendingVoiceRef.current)}
-          onVoice={voiceInput.toggle}
-          onToggleChat={() => setShowChat(true)}
+          onPushToTalkStart={handlePTTStart}
+          onPushToTalkEnd={handlePTTEnd}
+          onQuickCapture={handleQuickCapture}
           onToggleSettings={() => setShowSettings(true)}
-          isListening={voiceInput.isListening}
+          onToggleHistory={() => setShowHistory(true)}
+          isRecording={ptt.isRecording}
           isAnalyzing={isAnalyzing}
-          autoCapture={settings.autoCapture}
-          hasMessages={messages.length > 0}
-          voiceSupported={voiceInput.isSupported}
+          hasHistory={tips.length > 0}
         />
       )}
 
-      {/* Chat panel */}
-      <ChatPanel
-        messages={messages}
-        isVisible={showChat}
-        onClose={() => setShowChat(false)}
+      {/* History panel */}
+      <HistoryPanel
+        tips={tips}
+        isVisible={showHistory}
+        onClose={() => setShowHistory(false)}
       />
 
       {/* Settings panel */}

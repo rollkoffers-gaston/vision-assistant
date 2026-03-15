@@ -1,33 +1,51 @@
 const GEMINI_MODEL = 'gemini-2.5-flash'
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
+// Single frame analysis (quick capture)
 export async function analyzeFrame({ apiKey, imageBase64, mimeType = 'image/jpeg', prompt, systemPrompt, provider = 'gemini' }) {
   if (!apiKey) throw new Error('Kein API-Key konfiguriert. Bitte in den Einstellungen eintragen.')
 
-  if (provider === 'openrouter') {
-    return analyzeViaOpenRouter({ apiKey, imageBase64, mimeType, prompt, systemPrompt })
-  }
-
-  return analyzeViaGemini({ apiKey, imageBase64, mimeType, prompt, systemPrompt })
+  return analyzeFrames({
+    apiKey,
+    frames: [{ base64: imageBase64, mimeType }],
+    transcript: prompt || '',
+    systemPrompt,
+    provider,
+  })
 }
 
-async function analyzeViaGemini({ apiKey, imageBase64, mimeType, prompt, systemPrompt }) {
+// Multi-frame analysis (push-to-talk with video frames)
+export async function analyzeFrames({ apiKey, frames, transcript, systemPrompt, provider = 'gemini' }) {
+  if (!apiKey) throw new Error('Kein API-Key konfiguriert. Bitte in den Einstellungen eintragen.')
+
+  if (provider === 'openrouter') {
+    return analyzeFramesViaOpenRouter({ apiKey, frames, transcript, systemPrompt })
+  }
+
+  return analyzeFramesViaGemini({ apiKey, frames, transcript, systemPrompt })
+}
+
+async function analyzeFramesViaGemini({ apiKey, frames, transcript, systemPrompt }) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`
 
   const parts = []
 
-  if (prompt) {
-    parts.push({ text: prompt })
-  } else {
-    parts.push({ text: 'Was siehst du auf diesem Bild? Gib mir hilfreiche Tipps.' })
-  }
+  // Add voice transcript or default prompt
+  const textPrompt = transcript
+    ? transcript
+    : 'Was siehst du? Gib mir einen kurzen Tipp.'
 
-  parts.push({
-    inlineData: {
-      mimeType,
-      data: imageBase64,
-    }
-  })
+  parts.push({ text: textPrompt })
+
+  // Add all frames as inline images
+  for (const frame of frames) {
+    parts.push({
+      inlineData: {
+        mimeType: frame.mimeType || 'image/jpeg',
+        data: frame.base64,
+      }
+    })
+  }
 
   const body = {
     contents: [{ role: 'user', parts }],
@@ -39,7 +57,7 @@ async function analyzeViaGemini({ apiKey, imageBase64, mimeType, prompt, systemP
     }],
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 1024,
+      maxOutputTokens: 512,
     }
   }
 
@@ -67,24 +85,24 @@ async function analyzeViaGemini({ apiKey, imageBase64, mimeType, prompt, systemP
     .join('\n')
 }
 
-async function analyzeViaOpenRouter({ apiKey, imageBase64, mimeType, prompt, systemPrompt }) {
+async function analyzeFramesViaOpenRouter({ apiKey, frames, transcript, systemPrompt }) {
+  const userContent = [
+    {
+      type: 'text',
+      text: transcript || 'Was siehst du? Gib mir einen kurzen Tipp.'
+    },
+    // Use only the first frame for OpenRouter (most models support single image)
+    ...frames.slice(0, 1).map(frame => ({
+      type: 'image_url',
+      image_url: {
+        url: `data:${frame.mimeType || 'image/jpeg'};base64,${frame.base64}`
+      }
+    }))
+  ]
+
   const messages = [
     { role: 'system', content: systemPrompt },
-    {
-      role: 'user',
-      content: [
-        {
-          type: 'text',
-          text: prompt || 'Was siehst du auf diesem Bild? Gib mir hilfreiche Tipps.'
-        },
-        {
-          type: 'image_url',
-          image_url: {
-            url: `data:${mimeType};base64,${imageBase64}`
-          }
-        }
-      ]
-    }
+    { role: 'user', content: userContent }
   ]
 
   const response = await fetch(OPENROUTER_URL, {
@@ -97,7 +115,7 @@ async function analyzeViaOpenRouter({ apiKey, imageBase64, mimeType, prompt, sys
     body: JSON.stringify({
       model: 'google/gemini-2.0-flash-001',
       messages,
-      max_tokens: 1024,
+      max_tokens: 512,
     }),
   })
 

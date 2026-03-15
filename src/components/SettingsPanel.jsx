@@ -20,19 +20,19 @@ export function SettingsPanel({ settings, onSave, onClose }) {
 
   return (
     <div
-      className="absolute inset-0 bg-gaming-bg/98 backdrop-blur-sm z-30 flex flex-col animate-slideUp"
+      className="absolute inset-0 bg-gray-950/98 backdrop-blur-sm z-30 flex flex-col"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gaming-border bg-gaming-surface">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/40">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-gaming-teal" />
-          <h2 className="text-gaming-teal font-semibold text-sm tracking-wider uppercase">Einstellungen</h2>
+          <div className="w-2 h-2 rounded-full bg-teal-400" />
+          <h2 className="text-teal-400 font-semibold text-sm tracking-wider uppercase">Einstellungen</h2>
         </div>
         <button
           onClick={onClose}
-          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gaming-card
-                     text-gaming-border hover:text-gaming-cyan transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10
+                     text-white/40 hover:text-white transition-colors"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
             <path d="M18 6L6 18M6 6l12 12" />
@@ -45,26 +45,26 @@ export function SettingsPanel({ settings, onSave, onClose }) {
 
         {/* Provider Selection */}
         <div className="space-y-2">
-          <label className="text-xs text-gaming-cyan/80 font-medium uppercase tracking-wider">
+          <label className="text-xs text-cyan-400/80 font-medium uppercase tracking-wider">
             Provider
           </label>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setProvider('gemini')}
-              className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition-all ${
+              className={`py-2.5 px-3 rounded-xl border text-sm font-medium transition-all ${
                 provider === 'gemini'
-                  ? 'bg-gaming-cyan/20 border-gaming-cyan text-gaming-cyan'
-                  : 'bg-gaming-card border-gaming-border text-gaming-border hover:text-white'
+                  ? 'bg-cyan-500/20 border-cyan-400 text-cyan-400'
+                  : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
               }`}
             >
               🔮 Gemini API
             </button>
             <button
               onClick={() => setProvider('openrouter')}
-              className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition-all ${
+              className={`py-2.5 px-3 rounded-xl border text-sm font-medium transition-all ${
                 provider === 'openrouter'
-                  ? 'bg-gaming-cyan/20 border-gaming-cyan text-gaming-cyan'
-                  : 'bg-gaming-card border-gaming-border text-gaming-border hover:text-white'
+                  ? 'bg-cyan-500/20 border-cyan-400 text-cyan-400'
+                  : 'bg-white/5 border-white/10 text-white/50 hover:text-white'
               }`}
             >
               🌐 OpenRouter
@@ -74,7 +74,7 @@ export function SettingsPanel({ settings, onSave, onClose }) {
 
         {/* API Key */}
         <div className="space-y-2">
-          <label className="text-xs text-gaming-cyan/80 font-medium uppercase tracking-wider">
+          <label className="text-xs text-cyan-400/80 font-medium uppercase tracking-wider">
             {provider === 'gemini' ? 'Gemini API Key' : 'OpenRouter API Key'}
           </label>
           <div className="relative">
@@ -83,13 +83,13 @@ export function SettingsPanel({ settings, onSave, onClose }) {
               value={apiKey}
               onChange={e => setApiKey(e.target.value)}
               placeholder={provider === 'gemini' ? 'AIzaSy...' : 'sk-or-...'}
-              className="w-full bg-gaming-card border border-gaming-border rounded-lg px-3 py-2.5
-                         text-sm text-white placeholder-gaming-border/50 focus:outline-none
-                         focus:border-gaming-cyan transition-colors pr-10"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5
+                         text-sm text-white placeholder-white/20 focus:outline-none
+                         focus:border-cyan-400/60 transition-colors pr-10"
             />
             <button
               onClick={() => setShowKey(!showKey)}
-              className="absolute right-2 top-2.5 text-gaming-border hover:text-gaming-cyan transition-colors"
+              className="absolute right-2 top-2.5 text-white/30 hover:text-cyan-400 transition-colors"
             >
               {showKey ? (
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
@@ -105,15 +105,15 @@ export function SettingsPanel({ settings, onSave, onClose }) {
               )}
             </button>
           </div>
-          <p className="text-xs text-gaming-border/50">
+          <p className="text-xs text-white/30">
             {provider === 'gemini' ? (
-              <>Key wird nur lokal gespeichert. Hole ihn von{' '}
+              <>Key von{' '}
               <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer"
-                 className="text-gaming-cyan/70 underline">aistudio.google.com</a></>
+                 className="text-cyan-400/70 underline">aistudio.google.com</a> — lokal gespeichert</>
             ) : (
               <>OpenRouter Key von{' '}
               <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer"
-                 className="text-gaming-cyan/70 underline">openrouter.ai/keys</a></>
+                 className="text-cyan-400/70 underline">openrouter.ai/keys</a></>
             )}
           </p>
         </div>
@@ -121,12 +121,12 @@ export function SettingsPanel({ settings, onSave, onClose }) {
         {/* System Prompt */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs text-gaming-cyan/80 font-medium uppercase tracking-wider">
+            <label className="text-xs text-cyan-400/80 font-medium uppercase tracking-wider">
               System Prompt
             </label>
             <button
               onClick={handleReset}
-              className="text-xs text-gaming-border hover:text-gaming-teal transition-colors"
+              className="text-xs text-white/30 hover:text-teal-400 transition-colors"
             >
               Zurücksetzen
             </button>
@@ -134,28 +134,28 @@ export function SettingsPanel({ settings, onSave, onClose }) {
           <textarea
             value={systemPrompt}
             onChange={e => setSystemPrompt(e.target.value)}
-            rows={6}
-            className="w-full bg-gaming-card border border-gaming-border rounded-lg px-3 py-2.5
-                       text-sm text-white placeholder-gaming-border/50 focus:outline-none
-                       focus:border-gaming-cyan transition-colors resize-none leading-relaxed"
+            rows={5}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5
+                       text-sm text-white placeholder-white/20 focus:outline-none
+                       focus:border-cyan-400/60 transition-colors resize-none leading-relaxed"
           />
         </div>
 
         {/* Auto Capture */}
         <div className="space-y-3">
-          <label className="text-xs text-gaming-cyan/80 font-medium uppercase tracking-wider">
+          <label className="text-xs text-cyan-400/80 font-medium uppercase tracking-wider">
             Auto-Capture
           </label>
 
-          <div className="flex items-center justify-between bg-gaming-card border border-gaming-border rounded-lg px-4 py-3">
+          <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-3">
             <div>
               <p className="text-sm text-white">Automatisch aufnehmen</p>
-              <p className="text-xs text-gaming-border/60 mt-0.5">Regelmäßige Screenshots</p>
+              <p className="text-xs text-white/30 mt-0.5">Regelmäßige Screenshots analysieren</p>
             </div>
             <button
               onClick={() => setAutoCapture(!autoCapture)}
               className={`relative w-12 h-6 rounded-full transition-colors duration-200 ${
-                autoCapture ? 'bg-gaming-cyan' : 'bg-gaming-border'
+                autoCapture ? 'bg-cyan-500' : 'bg-white/20'
               }`}
             >
               <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
@@ -166,7 +166,7 @@ export function SettingsPanel({ settings, onSave, onClose }) {
 
           {autoCapture && (
             <div className="space-y-1">
-              <label className="text-xs text-gaming-border/70">
+              <label className="text-xs text-white/40">
                 Intervall: {captureInterval}s
               </label>
               <input
@@ -176,9 +176,9 @@ export function SettingsPanel({ settings, onSave, onClose }) {
                 step="5"
                 value={captureInterval}
                 onChange={e => setCaptureInterval(Number(e.target.value))}
-                className="w-full accent-gaming-cyan"
+                className="w-full accent-cyan-400"
               />
-              <div className="flex justify-between text-xs text-gaming-border/50">
+              <div className="flex justify-between text-xs text-white/20">
                 <span>5s</span>
                 <span>60s</span>
               </div>
@@ -187,21 +187,22 @@ export function SettingsPanel({ settings, onSave, onClose }) {
         </div>
 
         {/* Info */}
-        <div className="bg-gaming-card border border-gaming-border/50 rounded-lg p-3">
-          <p className="text-xs text-gaming-border/70 leading-relaxed">
-            📱 <strong className="text-gaming-cyan/80">Modell:</strong> Gemini 2.5 Flash (mit Google Search Grounding)
+        <div className="bg-white/5 border border-white/10 rounded-xl p-3">
+          <p className="text-xs text-white/40 leading-relaxed">
+            🎮 <strong className="text-cyan-400/70">HUD-Modus:</strong> Kamera immer sichtbar
+            <br/>🎤 <strong className="text-cyan-400/70">Push-to-Talk:</strong> Halten = Video+Sprache • Tippen = Foto
+            <br/>🔮 <strong className="text-cyan-400/70">Gemini 2.5 Flash</strong> mit Google Search Grounding
             <br/>🔒 Alle Daten bleiben auf deinem Gerät
-            <br/>🎤 Voice-Input funktioniert am besten in Chrome
           </p>
         </div>
       </div>
 
       {/* Save button */}
-      <div className="px-4 py-4 border-t border-gaming-border">
+      <div className="px-4 py-4 border-t border-white/10">
         <button
           onClick={handleSave}
-          className="w-full py-3 bg-gaming-cyan text-gaming-bg font-semibold rounded-xl
-                     hover:bg-gaming-cyan/90 active:scale-98 transition-all shadow-cyan-glow"
+          className="w-full py-3 bg-cyan-500 text-black font-semibold rounded-xl
+                     hover:bg-cyan-400 active:scale-98 transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)]"
         >
           Speichern
         </button>

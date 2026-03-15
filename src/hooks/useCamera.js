@@ -3,15 +3,14 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 export function useCamera() {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
-  const [facingMode, setFacingMode] = useState('environment') // 'environment' = back, 'user' = front
+  const [facingMode, setFacingMode] = useState('environment')
   const [isReady, setIsReady] = useState(false)
   const [error, setError] = useState(null)
 
-  const startCamera = useCallback(async (facing = facingMode) => {
+  const startCamera = useCallback(async (facing = 'environment') => {
     setIsReady(false)
     setError(null)
 
-    // Stop existing stream
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop())
       streamRef.current = null
@@ -24,7 +23,7 @@ export function useCamera() {
           width: { ideal: 1280 },
           height: { ideal: 720 },
         },
-        audio: false,
+        audio: true, // Include audio for MediaRecorder push-to-talk
       }
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints)
@@ -36,10 +35,29 @@ export function useCamera() {
         setIsReady(true)
       }
     } catch (err) {
-      console.error('Camera error:', err)
-      setError(err.message || 'Kamera nicht verfügbar')
+      // Try without audio if audio fails
+      try {
+        const constraints = {
+          video: {
+            facingMode: { ideal: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        }
+        const stream = await navigator.mediaDevices.getUserMedia(constraints)
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          await videoRef.current.play()
+          setIsReady(true)
+        }
+      } catch (err2) {
+        console.error('Camera error:', err2)
+        setError(err2.message || 'Kamera nicht verfügbar')
+      }
     }
-  }, [facingMode])
+  }, [])
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -69,13 +87,55 @@ export function useCamera() {
     const ctx = canvas.getContext('2d')
     ctx.drawImage(video, 0, 0)
 
-    // Return base64 without the data:image/jpeg;base64, prefix
     const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
     const base64 = dataUrl.split(',')[1]
-    return { base64, dataUrl }
+    return { base64, dataUrl, mimeType: 'image/jpeg' }
   }, [isReady])
 
-  // Start camera on mount
+  // Extract multiple frames from a recorded video blob
+  const extractFramesFromBlob = useCallback((blob, count = 4) => {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(blob)
+      const video = document.createElement('video')
+      video.src = url
+      video.muted = true
+
+      video.onloadedmetadata = async () => {
+        const duration = video.duration
+        const frames = []
+        const interval = duration / (count + 1)
+
+        for (let i = 1; i <= count; i++) {
+          const time = interval * i
+          await new Promise(res => {
+            video.currentTime = time
+            video.onseeked = () => res()
+          })
+
+          const canvas = document.createElement('canvas')
+          canvas.width = video.videoWidth || 640
+          canvas.height = video.videoHeight || 480
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(video, 0, 0)
+
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+          const base64 = dataUrl.split(',')[1]
+          frames.push({ base64, dataUrl, mimeType: 'image/jpeg' })
+        }
+
+        URL.revokeObjectURL(url)
+        resolve(frames)
+      }
+
+      video.onerror = () => {
+        URL.revokeObjectURL(url)
+        resolve([])
+      }
+    })
+  }, [])
+
+  const getStream = useCallback(() => streamRef.current, [])
+
   useEffect(() => {
     startCamera(facingMode)
     return () => stopCamera()
@@ -91,5 +151,7 @@ export function useCamera() {
     stopCamera,
     switchCamera,
     captureFrame,
+    extractFramesFromBlob,
+    getStream,
   }
 }
