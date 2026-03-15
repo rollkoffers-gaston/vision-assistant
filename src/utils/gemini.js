@@ -64,7 +64,7 @@ async function analyzeFramesViaGemini({ apiKey, frames, transcript, systemPrompt
     }],
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 1024,
+      maxOutputTokens: 5000,
     }
   }
 
@@ -121,7 +121,7 @@ async function analyzeFramesViaOpenRouter({ apiKey, frames, transcript, systemPr
     body: JSON.stringify({
       model: model || 'google/gemini-2.0-flash-001',
       messages,
-      max_tokens: 1024,
+      max_tokens: 5000,
     }),
   })
 
