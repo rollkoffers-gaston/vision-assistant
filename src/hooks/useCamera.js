@@ -6,6 +6,9 @@ export function useCamera() {
   const [facingMode, setFacingMode] = useState('environment')
   const [isReady, setIsReady] = useState(false)
   const [error, setError] = useState(null)
+  const [zoom, setZoom] = useState(1)
+  const [maxZoom, setMaxZoom] = useState(1)
+  const [zoomSupported, setZoomSupported] = useState(false)
 
   const startCamera = useCallback(async (facing = 'environment') => {
     setIsReady(false)
@@ -28,6 +31,24 @@ export function useCamera() {
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints)
       streamRef.current = stream
+
+      // Check zoom capability
+      const videoTrack = stream.getVideoTracks()[0]
+      if (videoTrack) {
+        try {
+          const capabilities = videoTrack.getCapabilities?.()
+          if (capabilities?.zoom) {
+            setZoomSupported(true)
+            setMaxZoom(Math.min(capabilities.zoom.max, 10))
+            setZoom(capabilities.zoom.min || 1)
+          } else {
+            setZoomSupported(false)
+            setMaxZoom(1)
+          }
+        } catch (e) {
+          setZoomSupported(false)
+        }
+      }
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
@@ -134,6 +155,19 @@ export function useCamera() {
     })
   }, [])
 
+  const setZoomLevel = useCallback((level) => {
+    if (!streamRef.current) return
+    const videoTrack = streamRef.current.getVideoTracks()[0]
+    if (!videoTrack) return
+    try {
+      const clamped = Math.max(1, Math.min(level, maxZoom))
+      videoTrack.applyConstraints({ advanced: [{ zoom: clamped }] })
+      setZoom(clamped)
+    } catch (e) {
+      console.warn('Zoom not supported:', e)
+    }
+  }, [maxZoom])
+
   const getStream = useCallback(() => streamRef.current, [])
 
   useEffect(() => {
@@ -153,5 +187,9 @@ export function useCamera() {
     captureFrame,
     extractFramesFromBlob,
     getStream,
+    zoom,
+    maxZoom,
+    zoomSupported,
+    setZoomLevel,
   }
 }

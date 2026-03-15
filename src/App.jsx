@@ -260,6 +260,10 @@ export default function App() {
           error={camera.error}
           facingMode={camera.facingMode}
           onSwitch={camera.switchCamera}
+          zoom={camera.zoom}
+          maxZoom={camera.maxZoom}
+          zoomSupported={camera.zoomSupported}
+          onZoom={camera.setZoomLevel}
         />
       </div>
 
