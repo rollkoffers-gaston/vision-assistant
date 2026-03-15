@@ -104,6 +104,7 @@ export default function App() {
         transcript: '',
         systemPrompt: settings.systemPrompt,
         provider: settings.provider || 'gemini',
+        model: settings.model || 'gemini-2.5-flash',
       })
 
       resolveTip(id, response)
@@ -180,6 +181,7 @@ export default function App() {
         transcript: transcript || '',
         systemPrompt: settings.systemPrompt,
         provider: settings.provider || 'gemini',
+        model: settings.model || 'gemini-2.5-flash',
       })
 
       resolveTip(id, response)

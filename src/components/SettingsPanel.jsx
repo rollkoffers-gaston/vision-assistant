@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { DEFAULT_SYSTEM_PROMPT } from '../utils/storage'
+import { GEMINI_MODELS } from '../utils/gemini'
 
 export function SettingsPanel({ settings, onSave, onClose }) {
   const [apiKey, setApiKey] = useState(settings.apiKey)
@@ -7,10 +8,11 @@ export function SettingsPanel({ settings, onSave, onClose }) {
   const [autoCapture, setAutoCapture] = useState(settings.autoCapture)
   const [captureInterval, setCaptureInterval] = useState(settings.captureInterval)
   const [provider, setProvider] = useState(settings.provider || 'gemini')
+  const [model, setModel] = useState(settings.model || 'gemini-2.5-flash')
   const [showKey, setShowKey] = useState(false)
 
   const handleSave = () => {
-    onSave({ apiKey, systemPrompt, autoCapture, captureInterval, provider })
+    onSave({ apiKey, systemPrompt, autoCapture, captureInterval, provider, model })
     onClose()
   }
 
@@ -71,6 +73,33 @@ export function SettingsPanel({ settings, onSave, onClose }) {
             </button>
           </div>
         </div>
+
+        {/* Model Selection */}
+        {provider === 'gemini' && (
+          <div className="space-y-2">
+            <label className="text-xs text-cyan-400/80 font-medium uppercase tracking-wider">
+              Modell
+            </label>
+            <div className="space-y-1.5">
+              {GEMINI_MODELS.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => setModel(m.id)}
+                  className={`w-full py-2.5 px-3 rounded-xl border text-left transition-all ${
+                    model === m.id
+                      ? 'bg-cyan-500/20 border-cyan-400'
+                      : 'bg-white/5 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className={`text-sm font-medium ${model === m.id ? 'text-cyan-400' : 'text-white/70'}`}>
+                    {m.name}
+                  </div>
+                  <div className="text-xs text-white/40">{m.description}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* API Key */}
         <div className="space-y-2">

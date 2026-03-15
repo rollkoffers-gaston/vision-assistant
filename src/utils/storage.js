@@ -4,9 +4,22 @@ const KEYS = {
   AUTO_CAPTURE: 'vision_assistant_auto_capture',
   CAPTURE_INTERVAL: 'vision_assistant_capture_interval',
   PROVIDER: 'vision_assistant_provider',
+  MODEL: 'vision_assistant_model',
 }
 
-export const DEFAULT_SYSTEM_PROMPT = `Du bist ein Gaming-Begleiter. Gib KURZE actionable Tipps (1-2 Sätze). Aktion zuerst, Erklärung in [Mehr]. Nutze ⚡ für Aktionen, 📦 für Items, 🗺️ für Navigation. Spoilere das Spiel nicht. Hilf den Spielfluss aufrechtzuerhalten. Antworte auf Deutsch.`
+export const DEFAULT_SYSTEM_PROMPT = `Du bist ein Gaming-Begleiter. WICHTIG: Antworte IMMER vollständig, nie abgeschnitten.
+
+Format:
+- ERSTE ZEILE: Kurzer Tipp (1 Satz, max 15 Wörter) mit Icon
+- DANACH: Leere Zeile + Details (2-3 Sätze)
+
+Icons: ⚡ Aktionen | 📦 Items | 🗺️ Navigation | 💰 Geld | ⚠️ Warnung
+
+Regeln:
+- Deutsch
+- Spoilere nicht
+- Hilf den Spielfluss aufrechtzuerhalten
+- Sei konkret und actionable`
 
 export function getSettings() {
   return {
@@ -15,6 +28,7 @@ export function getSettings() {
     autoCapture: localStorage.getItem(KEYS.AUTO_CAPTURE) === 'true',
     captureInterval: parseInt(localStorage.getItem(KEYS.CAPTURE_INTERVAL) || '10', 10),
     provider: localStorage.getItem(KEYS.PROVIDER) || 'gemini',
+    model: localStorage.getItem(KEYS.MODEL) || 'gemini-2.5-flash',
   }
 }
 
@@ -24,4 +38,5 @@ export function saveSettings(settings) {
   if (settings.autoCapture !== undefined) localStorage.setItem(KEYS.AUTO_CAPTURE, String(settings.autoCapture))
   if (settings.captureInterval !== undefined) localStorage.setItem(KEYS.CAPTURE_INTERVAL, String(settings.captureInterval))
   if (settings.provider !== undefined) localStorage.setItem(KEYS.PROVIDER, settings.provider)
+  if (settings.model !== undefined) localStorage.setItem(KEYS.MODEL, settings.model)
 }

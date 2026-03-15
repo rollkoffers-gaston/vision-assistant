@@ -1,8 +1,13 @@
-const GEMINI_MODEL = 'gemini-2.5-flash'
+export const GEMINI_MODELS = [
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Schnell & günstig' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', description: 'Beste Qualität' },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Legacy schnell' },
+]
+
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 // Single frame analysis (quick capture)
-export async function analyzeFrame({ apiKey, imageBase64, mimeType = 'image/jpeg', prompt, systemPrompt, provider = 'gemini' }) {
+export async function analyzeFrame({ apiKey, imageBase64, mimeType = 'image/jpeg', prompt, systemPrompt, provider = 'gemini', model }) {
   if (!apiKey) throw new Error('Kein API-Key konfiguriert. Bitte in den Einstellungen eintragen.')
 
   return analyzeFrames({
@@ -11,33 +16,33 @@ export async function analyzeFrame({ apiKey, imageBase64, mimeType = 'image/jpeg
     transcript: prompt || '',
     systemPrompt,
     provider,
+    model,
   })
 }
 
 // Multi-frame analysis (push-to-talk with video frames)
-export async function analyzeFrames({ apiKey, frames, transcript, systemPrompt, provider = 'gemini' }) {
+export async function analyzeFrames({ apiKey, frames, transcript, systemPrompt, provider = 'gemini', model }) {
   if (!apiKey) throw new Error('Kein API-Key konfiguriert. Bitte in den Einstellungen eintragen.')
 
   if (provider === 'openrouter') {
-    return analyzeFramesViaOpenRouter({ apiKey, frames, transcript, systemPrompt })
+    return analyzeFramesViaOpenRouter({ apiKey, frames, transcript, systemPrompt, model })
   }
 
-  return analyzeFramesViaGemini({ apiKey, frames, transcript, systemPrompt })
+  return analyzeFramesViaGemini({ apiKey, frames, transcript, systemPrompt, model })
 }
 
-async function analyzeFramesViaGemini({ apiKey, frames, transcript, systemPrompt }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`
+async function analyzeFramesViaGemini({ apiKey, frames, transcript, systemPrompt, model }) {
+  const geminiModel = model || 'gemini-2.5-flash'
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`
 
   const parts = []
 
-  // Add voice transcript or default prompt
   const textPrompt = transcript
     ? transcript
     : 'Was siehst du? Gib mir einen kurzen Tipp.'
 
   parts.push({ text: textPrompt })
 
-  // Add all frames as inline images
   for (const frame of frames) {
     parts.push({
       inlineData: {
@@ -57,7 +62,7 @@ async function analyzeFramesViaGemini({ apiKey, frames, transcript, systemPrompt
     }],
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 512,
+      maxOutputTokens: 1024,
     }
   }
 
@@ -85,13 +90,12 @@ async function analyzeFramesViaGemini({ apiKey, frames, transcript, systemPrompt
     .join('\n')
 }
 
-async function analyzeFramesViaOpenRouter({ apiKey, frames, transcript, systemPrompt }) {
+async function analyzeFramesViaOpenRouter({ apiKey, frames, transcript, systemPrompt, model }) {
   const userContent = [
     {
       type: 'text',
       text: transcript || 'Was siehst du? Gib mir einen kurzen Tipp.'
     },
-    // Use only the first frame for OpenRouter (most models support single image)
     ...frames.slice(0, 1).map(frame => ({
       type: 'image_url',
       image_url: {
@@ -113,9 +117,9 @@ async function analyzeFramesViaOpenRouter({ apiKey, frames, transcript, systemPr
       'HTTP-Referer': window.location.origin,
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.0-flash-001',
+      model: model || 'google/gemini-2.0-flash-001',
       messages,
-      max_tokens: 512,
+      max_tokens: 1024,
     }),
   })
 
